@@ -9,14 +9,58 @@ export default function AdminDashboard() {
   const [customerName, setCustomerName] = useState('');
   const [weight, setWeight] = useState('');
   const [totalPrice, setTotalPrice] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const validateForm = () => {
+    setError('');
+    
+    if (!customerName || customerName.trim().length === 0) {
+      setError('Nama pelanggan tidak boleh kosong');
+      return false;
+    }
+    
+    const weightNum = parseFloat(weight);
+    if (!weight || isNaN(weightNum) || weightNum <= 0) {
+      setError('Berat harus lebih dari 0 kg');
+      return false;
+    }
+    
+    const priceNum = parseFloat(totalPrice);
+    if (!totalPrice || isNaN(priceNum) || priceNum <= 0) {
+      setError('Harga harus lebih dari 0 rupiah');
+      return false;
+    }
+    
+    return true;
+  };
 
   const handleAddOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName || !weight || !totalPrice) return;
-    await addOrder(customerName, parseFloat(weight), parseFloat(totalPrice));
-    setCustomerName('');
-    setWeight('');
-    setTotalPrice('');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      await addOrder(customerName.trim(), parseFloat(weight), parseFloat(totalPrice));
+      setSuccess('Order berhasil ditambahkan!');
+      setCustomerName('');
+      setWeight('');
+      setTotalPrice('');
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Gagal menambahkan order. Coba lagi.');
+      console.error('Error adding order:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.totalPrice, 0);
@@ -29,7 +73,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {!isSupabaseConnected && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md mb-6">
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md mb-6"> 
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
@@ -50,7 +94,6 @@ export default function AdminDashboard() {
 
       <h2 className="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
       
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium">Total Pendapatan</h3>
@@ -67,9 +110,21 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Form Input Order */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
           <h3 className="text-lg font-semibold mb-4 border-b pb-2">Input Order Baru</h3>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+          
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-600">{success}</p>
+            </div>
+          )}
+          
           <form onSubmit={handleAddOrder} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Nama Pelanggan</label>
@@ -78,7 +133,8 @@ export default function AdminDashboard() {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-blue-500 focus:ring-blue-500"
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
-                required
+                disabled={isSubmitting}
+                placeholder="Masukkan nama pelanggan"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -87,33 +143,41 @@ export default function AdminDashboard() {
                 <input 
                   type="number" 
                   step="0.1"
+                  min="0"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-blue-500 focus:ring-blue-500"
                   value={weight}
                   onChange={e => setWeight(e.target.value)}
-                  required
+                  disabled={isSubmitting}
+                  placeholder="0.0"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Total Harga (Rp)</label>
                 <input 
                   type="number" 
+                  min="0"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-blue-500 focus:ring-blue-500"
                   value={totalPrice}
                   onChange={e => setTotalPrice(e.target.value)}
-                  required
+                  disabled={isSubmitting}
+                  placeholder="0"
                 />
               </div>
             </div>
             <button 
               type="submit"
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition"
+              disabled={isSubmitting}
+              className={`w-full py-2 px-4 rounded font-medium transition ${
+                isSubmitting 
+                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`
             >
-              Simpan Order
+              {isSubmitting ? 'Memproses...' : 'Simpan Order'}
             </button>
           </form>
         </div>
 
-        {/* Employee Status & Productivity */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
           <h3 className="text-lg font-semibold mb-4 border-b pb-2">Status & Produktivitas Karyawan</h3>
           <div className="space-y-4">
@@ -127,7 +191,7 @@ export default function AdminDashboard() {
                   <div>
                     <div className="font-medium flex items-center gap-2">
                       {emp.name}
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${isClockedIn ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${isClockedIn ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}> 
                         {isClockedIn ? 'Sedang Bekerja' : 'Offline'}
                       </span>
                     </div>
@@ -148,7 +212,6 @@ export default function AdminDashboard() {
         </div>
       </div>
       
-      {/* Order List */}
       <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
         <h3 className="text-lg font-semibold mb-4 border-b pb-2">Daftar Order</h3>
         <div className="overflow-x-auto">
@@ -177,7 +240,7 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                         ${order.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 
-                          order.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                          order.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}> 
                         {order.status}
                       </span>
                     </td>
